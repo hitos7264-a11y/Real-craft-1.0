@@ -2,894 +2,125 @@
 <html lang="ja">
 <head>
 <meta charset="utf-8">
-<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no">
-<title>HRGM Voxel World</title>
+<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no,viewport-fit=cover">
+<meta name="theme-color" content="#0a0c10">
+<meta name="color-scheme" content="dark">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="VoxelWorld">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="format-detection" content="telephone=no">
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="apple-touch-icon" href="icons/icon.svg">
+<link rel="icon" href="icons/icon.svg" type="image/svg+xml">
+<title>VoxelWorld</title>
 <style>
   :root{
-    --bg:#0a0c10; --panel:rgba(14,18,24,.82); --line:rgba(255,255,255,.10);
-    --ink:#e7ecf2; --dim:#8b97a6; --sun:#ffb454; --good:#7ee0a8; --bad:#ff6b6b;
-    --mono:ui-monospace,"SF Mono",Menlo,Consolas,monospace;
+    --bg:#0a0c10; --sun:#ffb454; --dim:#8b97a6; --ink:#e7ecf2;
+    --safe-t:env(safe-area-inset-top,0px); --safe-b:env(safe-area-inset-bottom,0px);
   }
-  *{box-sizing:border-box}
+  *{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
   html,body{margin:0;height:100%;background:var(--bg);color:var(--ink);
-    font-family:var(--mono);overflow:hidden;-webkit-user-select:none;user-select:none;touch-action:none}
-  #c{position:fixed;inset:0;width:100vw;height:100vh;display:block;image-rendering:auto;cursor:crosshair}
-  /* crosshair */
-  #cross{position:fixed;left:50%;top:50%;width:18px;height:18px;margin:-9px 0 0 -9px;pointer-events:none;opacity:.7;z-index:5}
-  #cross::before,#cross::after{content:"";position:absolute;background:#fff;box-shadow:0 0 2px #000}
-  #cross::before{left:8px;top:0;width:2px;height:18px}
-  #cross::after{top:8px;left:0;height:2px;width:18px}
-  /* stats */
-  #stats{position:fixed;left:10px;top:10px;z-index:6;font-size:12px;line-height:1.5;
-    background:var(--panel);border:1px solid var(--line);border-radius:10px;padding:8px 11px;
-    backdrop-filter:blur(8px);min-width:150px}
-  #stats b{color:var(--sun);font-weight:600}
-  #stats .row{display:flex;justify-content:space-between;gap:14px}
-  #stats .k{color:var(--dim)}
-  /* control panel */
-  #gear{position:fixed;right:10px;top:10px;z-index:8;width:42px;height:42px;border-radius:11px;
-    background:var(--panel);border:1px solid var(--line);color:var(--ink);font-size:20px;
-    backdrop-filter:blur(8px);display:flex;align-items:center;justify-content:center}
-  #panel{position:fixed;right:10px;top:60px;z-index:7;width:248px;max-height:80vh;overflow:auto;
-    background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:12px 13px;
-    backdrop-filter:blur(10px);display:none}
-  #panel.open{display:block}
-  #panel h2{font-size:11px;letter-spacing:.14em;text-transform:uppercase;color:var(--dim);
-    margin:14px 0 7px;font-weight:600}
-  #panel h2:first-child{margin-top:2px}
-  .ctl{margin:9px 0}
-  .ctl label{display:flex;justify-content:space-between;font-size:11px;color:var(--ink);margin-bottom:4px}
-  .ctl label span{color:var(--sun)}
-  .ctl input[type=range]{width:100%;height:3px;accent-color:var(--sun);background:var(--line)}
-  .seg{display:flex;gap:5px}
-  .seg button{flex:1;font-family:var(--mono);font-size:11px;padding:6px 0;border-radius:7px;
-    border:1px solid var(--line);background:transparent;color:var(--dim)}
-  .seg button.on{background:var(--sun);color:#1a1206;border-color:var(--sun);font-weight:600}
-  .btn{width:100%;font-family:var(--mono);font-size:12px;padding:9px 0;border-radius:8px;
-    border:1px solid var(--line);background:transparent;color:var(--ink);margin-top:5px}
-  .btn.accent{background:var(--sun);color:#1a1206;border-color:var(--sun);font-weight:700}
-  .hrgm{width:100%;font-family:var(--mono);font-size:13px;letter-spacing:.04em;padding:11px 0;border-radius:9px;
-    border:1px solid var(--sun);background:transparent;color:var(--sun);font-weight:700;margin-bottom:6px}
-  .hrgm.on{background:linear-gradient(180deg,#ffcf80,#ff9e36);color:#1a1206;box-shadow:0 0 18px rgba(255,180,84,.35)}
-  /* touch controls */
-  #stick{position:fixed;left:24px;bottom:26px;width:120px;height:120px;z-index:6;border-radius:50%;
-    border:1px solid var(--line);background:rgba(255,255,255,.04);display:none}
-  #stick .nub{position:absolute;left:50%;top:50%;width:48px;height:48px;margin:-24px 0 0 -24px;border-radius:50%;
-    background:rgba(255,255,255,.18);border:1px solid var(--line)}
-  #vbtns{position:fixed;right:22px;bottom:26px;z-index:6;display:none;flex-direction:column;gap:10px}
-  #vbtns button{width:62px;height:50px;border-radius:12px;border:1px solid var(--line);
-    background:var(--panel);color:var(--ink);font-size:18px;backdrop-filter:blur(6px)}
-  #vbtns button.spr{font-size:12px;letter-spacing:.05em}
-  /* overlay (loading / error) */
-  #ov{position:fixed;inset:0;z-index:30;background:radial-gradient(120% 120% at 50% 30%,#10151c,#06080b);
-    display:flex;align-items:center;justify-content:center;text-align:center;padding:28px}
-  #ov.hide{display:none}
-  #ov .box{max-width:520px}
-  #ov h1{font-size:15px;letter-spacing:.22em;color:var(--sun);margin:0 0 6px;font-weight:600}
-  #ov p{font-size:13px;line-height:1.7;color:var(--dim);margin:6px 0;white-space:pre-wrap}
-  #ov code{color:var(--ink);background:rgba(255,255,255,.06);padding:1px 6px;border-radius:5px}
-  #bar{width:240px;height:3px;background:var(--line);border-radius:3px;margin:16px auto 0;overflow:hidden}
-  #bar i{display:block;height:100%;width:0;background:var(--sun);transition:width .2s}
-  .err h1{color:var(--bad)!important}
-  .err p{color:var(--ink)!important;text-align:left}
-  #hint{position:fixed;left:50%;bottom:8px;transform:translateX(-50%);z-index:5;font-size:11px;
-    color:var(--dim);background:var(--panel);border:1px solid var(--line);padding:4px 10px;border-radius:8px;
-    backdrop-filter:blur(6px);opacity:.85}
+    font-family:ui-monospace,"SF Mono",Menlo,Consolas,monospace;
+    overscroll-behavior:none;touch-action:manipulation}
+  body{min-height:100dvh;display:flex;flex-direction:column;align-items:center;justify-content:center;
+    padding:calc(20px + var(--safe-t)) 24px calc(24px + var(--safe-b));overflow:hidden}
+  .splash-logo{width:96px;height:96px;margin-bottom:20px;animation:float 3s ease-in-out infinite}
+  @keyframes float{0%,100%{transform:translateY(0)}50%{transform:translateY(-8px)}}
+  h1{font-size:14px;letter-spacing:.28em;color:var(--sun);margin:0 0 8px;font-weight:700}
+  .tag{font-size:11px;color:var(--dim);margin:0 0 28px;letter-spacing:.06em}
+  .card{width:100%;max-width:360px}
+  .play{display:flex;align-items:center;justify-content:center;gap:10px;width:100%;
+    font-family:inherit;font-size:15px;font-weight:800;letter-spacing:.04em;
+    padding:16px 0;border:none;border-radius:14px;cursor:pointer;
+    background:linear-gradient(180deg,#ffcf80,#ff9e36);color:#1a1206;
+    box-shadow:0 8px 32px rgba(255,158,54,.35);margin-bottom:12px}
+  .play:active{transform:scale(.98)}
+  .install{width:100%;font-family:inherit;font-size:13px;font-weight:700;padding:14px 0;
+    border-radius:12px;border:1px solid var(--sun);background:rgba(255,180,84,.08);
+    color:var(--sun);display:none;margin-bottom:12px}
+  .ios-guide{display:none;background:rgba(255,255,255,.04);border:1px solid rgba(255,255,255,.1);
+    border-radius:12px;padding:14px 16px;font-size:12px;line-height:1.7;color:var(--dim);margin-bottom:12px}
+  .ios-guide b{color:var(--ink)}
+  .ios-guide.show{display:block}
+  .feat{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:8px}
+  .feat span{font-size:10px;color:var(--dim);background:rgba(255,255,255,.04);
+    border:1px solid rgba(255,255,255,.08);border-radius:8px;padding:8px 10px;text-align:center}
+  .standalone .install,.standalone .ios-guide{display:none!important}
+  #boot-splash{position:fixed;inset:0;z-index:99;background:var(--bg);display:flex;flex-direction:column;
+    align-items:center;justify-content:center;transition:opacity .4s}
+  #boot-splash.hide{opacity:0;pointer-events:none}
 </style>
 </head>
 <body>
-<canvas id="c"></canvas>
-<div id="cross"></div>
-
-<div id="stats">
-  <div class="row"><span class="k">FPS</span><b id="s_fps">–</b></div>
-  <div class="row"><span class="k">frame</span><span id="s_ms">– ms</span></div>
-  <div class="row"><span class="k">render</span><span id="s_res">–</span></div>
-  <div class="row"><span class="k">voxels</span><span id="s_vox">–</span></div>
-  <div class="row"><span class="k">mode</span><span id="s_mode">–</span></div>
+<div id="boot-splash">
+  <img class="splash-logo" src="icons/icon.svg" alt="" width="96" height="96">
+  <h1>VOXEL WORLD</h1>
 </div>
-
-<button id="gear" aria-label="settings">⚙</button>
-<div id="panel">
-  <button id="hrgm" class="hrgm">HRGM ── OFF</button>
-
-  <h2>解像度・負荷</h2>
-  <div class="ctl"><label>内部解像度 <span id="v_scale"></span></label><input id="scale" type="range" min="0.2" max="2" step="0.05"></div>
-  <div class="ctl"><label>描画距離 (steps) <span id="v_steps"></span></label><input id="steps" type="range" min="64" max="800" step="16"></div>
-  <div class="ctl"><label>視野角 FOV <span id="v_fov"></span></label><input id="fov" type="range" min="50" max="100" step="1"></div>
-
-  <h2>ライティング</h2>
-  <div class="ctl"><label>影</label>
-    <div class="seg"><button data-sh="0">なし</button><button data-sh="1">ハード</button><button data-sh="2">ソフト</button></div></div>
-  <div class="ctl"><label>ソフト影サンプル <span id="v_soft"></span></label><input id="soft" type="range" min="1" max="16" step="1"></div>
-  <div class="ctl"><label>AO (環境遮蔽)</label>
-    <div class="seg"><button data-ao="0">OFF</button><button data-ao="1">ON</button></div></div>
-  <div class="ctl"><label>太陽の高さ <span id="v_sun"></span></label><input id="sun" type="range" min="3" max="90" step="1"></div>
-  <div class="ctl"><label>太陽の方位 <span id="v_azi"></span></label><input id="azi" type="range" min="0" max="360" step="1"></div>
-  <div class="ctl"><label>霧の濃さ <span id="v_fog"></span></label><input id="fog" type="range" min="0" max="100" step="1"></div>
-
-  <h2>世界・NPC</h2>
-  <div class="ctl"><label>移動速度 <span id="v_spd"></span></label><input id="spd" type="range" min="6" max="120" step="1"></div>
-  <div class="ctl"><label>NPC数 <span id="v_npc"></span></label><input id="npc" type="range" min="0" max="48" step="1"></div>
-
-  <h2>地形生成 (要・再生成)</h2>
-  <div class="ctl"><label>横幅 X/Z <span id="v_wx"></span></label><input id="wx" type="range" min="128" max="384" step="16"></div>
-  <div class="ctl"><label>高さ Y <span id="v_wy"></span></label><input id="wy" type="range" min="160" max="400" step="16"></div>
-  <div class="ctl"><label>洞窟の多さ <span id="v_cave"></span></label><input id="cave" type="range" min="0.02" max="0.14" step="0.005"></div>
-  <button id="regen" class="btn accent">この設定で再生成</button>
-  <button id="reseed" class="btn">新しいシードで再生成</button>
+<div class="card">
+  <img class="splash-logo" src="icons/icon.svg" alt="" width="96" height="96">
+  <h1>HRGM VOXEL WORLD</h1>
+  <p class="tag">WebGPU • スマホGPUフル活用</p>
+  <button class="play" id="play">▶ &nbsp;タップしてプレイ</button>
+  <button class="install" id="install">📲 アプリとしてインストール</button>
+  <div class="ios-guide" id="ios">
+    <b>iPhoneの場合</b><br>
+    1. Safariでこのページを開く<br>
+    2. 下の <b>共有</b> ボタンをタップ<br>
+    3. <b>ホーム画面に追加</b> を選ぶ<br>
+    → アイコンから起動すると本物のアプリ感で遊べます
+  </div>
+  <div class="feat">
+    <span>全画面起動</span><span>オフライン対応</span>
+    <span>GPUレイトレース</span><span>タッチ操作</span>
+  </div>
 </div>
-
-<div id="stick"><div class="nub" id="nub"></div></div>
-<div id="vbtns">
-  <button id="b_up">▲</button>
-  <button id="b_dn">▼</button>
-  <button id="b_spr" class="spr">DASH</button>
-</div>
-<div id="hint">クリック/タップで視点ロック • WASD移動 • Space/Shift上下</div>
-
-<div id="ov"><div class="box">
-  <h1 id="ov_t">HRGM VOXEL WORLD</h1>
-  <p id="ov_p">WebGPUを初期化中…</p>
-  <div id="bar"><i id="bar_i"></i></div>
-</div></div>
-
+<script src="native.js"></script>
 <script>
-"use strict";
-(async function(){
-const $=s=>document.querySelector(s);
-const ov=$("#ov"),ovT=$("#ov_t"),ovP=$("#ov_p"),barI=$("#bar_i");
-function fail(title,msg){ov.classList.remove("hide");ov.querySelector(".box").classList.add("err");
-  ovT.textContent=title;ovP.textContent=msg;$("#bar").style.display="none";}
-function load(p,msg){barI.style.width=(p*100)+"%";if(msg)ovP.textContent=msg;}
+HRGMNative.applyStandaloneClass();
+HRGMNative.preventBrowserGestures();
+HRGMNative.registerServiceWorker();
 
-// ---------- settings ----------
-const S={
-  scale:0.4, steps:256, fov:72, shadow:1, soft:6, ao:0,
-  sunEl:42, sunAz:135, fog:18, speed:34, npc:14, hrgm:false,
-  wx:256, wy:400, cave:0.07
-};
-let DIMX=S.wx, DIMY=S.wy, DIMZ=S.wx;
-const MAXNPC=48;
+const play=document.getElementById("play");
+const installBtn=document.getElementById("install");
+const ios=document.getElementById("ios");
+let deferred;
 
-// ---------- webgpu init ----------
-if(!navigator.gpu){
-  fail("WebGPUが使えへん",
-"このブラウザ/環境ではWebGPUが無効や。\n\n対処:\n1) このHTMLをダウンロードして Chrome (Android/PC) で直接開く\n2) Termuxでローカルサーバを立てて http://localhost で開く\n   例)  python -m http.server 8080\n   ※file:// 直開きはWebGPUが弾かれる場合があるのでlocalhost推奨\n\nclaude.aiアプリ内プレビューはWebView制限でWebGPU非対応のことがある。");
-  return;
-}
-let adapter,device;
-try{
-  adapter=await navigator.gpu.requestAdapter({powerPreference:"high-performance"});
-  if(!adapter) throw new Error("no adapter");
-  device=await adapter.requestDevice();
-}catch(e){ fail("GPUデバイス取得に失敗", String(e&&e.message||e)); return; }
-device.addEventListener("uncapturederror",ev=>{
-  console.error("WebGPU:",ev.error); 
-  if(!ov.classList.contains("hide")) return;
-});
-
-const canvas=$("#c");
-const ctx=canvas.getContext("webgpu");
-const fmt=navigator.gpu.getPreferredCanvasFormat();
-ctx.configure({device,format:fmt,alphaMode:"opaque"});
-
-// ---------- WGSL: shared helpers ----------
-const NOISE=/* wgsl */`
-fn hu(x:u32)->u32{var h=x;h^=h>>16u;h*=0x7feb352du;h^=h>>15u;h*=0x846ca68bu;h^=h>>16u;return h;}
-fn h3(p:vec3<i32>)->f32{
-  let h=hu(u32(p.x)*1973u ^ hu(u32(p.y)*9277u) ^ hu(u32(p.z)*26699u));
-  return f32(h)/4294967295.0;
-}
-fn vnoise(p:vec3<f32>)->f32{
-  let i=vec3<i32>(floor(p)); let f=fract(p); let u=f*f*(3.0-2.0*f);
-  let c000=h3(i+vec3<i32>(0,0,0)); let c100=h3(i+vec3<i32>(1,0,0));
-  let c010=h3(i+vec3<i32>(0,1,0)); let c110=h3(i+vec3<i32>(1,1,0));
-  let c001=h3(i+vec3<i32>(0,0,1)); let c101=h3(i+vec3<i32>(1,0,1));
-  let c011=h3(i+vec3<i32>(0,1,1)); let c111=h3(i+vec3<i32>(1,1,1));
-  let x00=mix(c000,c100,u.x); let x10=mix(c010,c110,u.x);
-  let x01=mix(c001,c101,u.x); let x11=mix(c011,c111,u.x);
-  return mix(mix(x00,x10,u.y),mix(x01,x11,u.y),u.z);
-}
-fn fbm(p0:vec3<f32>)->f32{
-  var a=0.5; var s=0.0; var q=p0;
-  for(var i=0;i<4;i++){ s+=a*vnoise(q); q=q*2.0; a*=0.5; }
-  return s;
-}`;
-
-// ---------- WGSL: generation compute ----------
-const GEN_WGSL=/* wgsl */`
-struct GU{ dims:vec3<f32>, sea:f32, snow:f32, seed:f32, cscale:f32, cthr:f32 };
-@group(0) @binding(0) var<uniform> g:GU;
-@group(0) @binding(1) var hmap:texture_2d<f32>;
-@group(0) @binding(2) var outv:texture_storage_3d<r32uint,write>;
-${NOISE}
-@compute @workgroup_size(4,4,4)
-fn main(@builtin(global_invocation_id) gid:vec3<u32>){
-  let X=i32(g.dims.x); let Y=i32(g.dims.y); let Z=i32(g.dims.z);
-  let x=i32(gid.x); let y=i32(gid.y); let z=i32(gid.z);
-  if(x>=X||y>=Y||z>=Z){ return; }
-  let hb=textureLoad(hmap, vec2<i32>(x,z), 0);
-  let h=hb.r; let biome=i32(hb.g+0.5);
-  let fy=f32(y);
-  var block:u32=0u;
-  if(fy<=h){
-    let depth=h-fy;
-    if(depth<1.0){
-      if(biome==2 || fy>g.snow){ block=5u; }      // snow cap
-      else if(biome==1){ block=4u; }              // sand
-      else { block=3u; }                          // grass
-    } else if(depth<4.0){
-      if(biome==1){ block=4u; } else { block=2u; } // sand / dirt
-    } else { block=1u; }                           // stone
-    if(depth>3.0 && y>1){
-      let cp=vec3<f32>(f32(x),fy,f32(z))*g.cscale + vec3<f32>(g.seed,g.seed*1.7,g.seed*0.3);
-      let n1=fbm(cp);
-      let n2=fbm(cp+vec3<f32>(31.4,12.7,5.2));
-      let tunnel=(abs(n1-0.47)<g.cthr) && (abs(n2-0.47)<g.cthr);
-      let cavern=fbm(cp*0.5+vec3<f32>(7.0,3.0,11.0))>0.74;
-      if(tunnel||cavern){ block=0u; }
-    }
-  } else if(fy<=g.sea){
-    block=6u;                                      // water
-  }
-  if(y==0){ block=9u; }                            // bedrock
-  textureStore(outv, vec3<i32>(x,y,z), vec4<u32>(block,0u,0u,0u));
-}`;
-
-// ---------- WGSL: render (voxel ray tracer) ----------
-const RT_WGSL=/* wgsl */`
-struct U{
-  camPos:vec3<f32>, fov:f32,
-  camDir:vec3<f32>, time:f32,
-  camRight:vec3<f32>, aspect:f32,
-  camUp:vec3<f32>, maxSteps:f32,
-  sunDir:vec3<f32>, shadowMode:f32,
-  res:vec2<f32>, aoOn:f32, soft:f32,
-  dims:vec3<f32>, sea:f32,
-  npcCount:f32, fog:f32, snow:f32, pad0:f32
-};
-@group(0) @binding(0) var<uniform> u:U;
-@group(0) @binding(1) var vox:texture_3d<u32>;
-@group(0) @binding(2) var<storage,read> npcs:array<vec4<f32>>;
-
-@vertex
-fn vs(@builtin(vertex_index) vi:u32)->@builtin(position) vec4<f32>{
-  var p=array<vec2<f32>,3>(vec2<f32>(-1.0,-1.0),vec2<f32>(3.0,-1.0),vec2<f32>(-1.0,3.0));
-  return vec4<f32>(p[vi],0.0,1.0);
+// インストール済みなら即ゲームへ（アプリアイコンから来た場合）
+if(HRGMNative.isStandalone){
+  location.replace("hrgm_voxel_world.html?source=app");
+}else{
+  setTimeout(()=>document.getElementById("boot-splash").classList.add("hide"),600);
 }
 
-fn hashf(c:vec3<i32>)->f32{
-  var h:u32=(u32(c.x)*73856093u)^(u32(c.y)*19349663u)^(u32(c.z)*83492791u);
-  h^=h>>13u; h=h*0x5bd1e995u; h^=h>>15u; return f32(h&0xffffu)/65535.0;
-}
-fn getV(c:vec3<i32>)->u32{
-  if(c.x<0||c.y<0||c.z<0||c.x>=i32(u.dims.x)||c.y>=i32(u.dims.y)||c.z>=i32(u.dims.z)){return 0u;}
-  return textureLoad(vox,c,0).x;
-}
-fn palette(id:u32,v:f32)->vec3<f32>{
-  let t=0.86+0.14*v;
-  switch id{
-    case 1u:{ return vec3<f32>(0.40,0.40,0.44)*t; }
-    case 2u:{ return vec3<f32>(0.45,0.31,0.18)*t; }
-    case 3u:{ return vec3<f32>(0.26,0.55,0.22)*t; }
-    case 4u:{ return vec3<f32>(0.84,0.77,0.51)*t; }
-    case 5u:{ return vec3<f32>(0.92,0.95,0.99)*t; }
-    case 6u:{ return vec3<f32>(0.12,0.34,0.56); }
-    case 9u:{ return vec3<f32>(0.14,0.14,0.16)*t; }
-    default:{ return vec3<f32>(0.85,0.2,0.85); }
-  }
-}
+// iOS Safari 判定
+const isIOS=/iPad|iPhone|iPod/.test(navigator.userAgent)||(navigator.platform==="MacIntel"&&navigator.maxTouchPoints>1);
+if(isIOS&&!HRGMNative.isStandalone) ios.classList.add("show");
 
-struct Hit{ hit:bool, t:f32, vox:vec3<i32>, n:vec3<f32>, id:u32 };
-
-fn raycast(ro:vec3<f32>, rd:vec3<f32>, maxSteps:i32)->Hit{
-  var R:Hit; R.hit=false; R.t=1e9; R.id=0u; R.n=vec3<f32>(0.0); R.vox=vec3<i32>(0);
-  let inv=1.0/rd;
-  let t0=(vec3<f32>(0.0)-ro)*inv;
-  let t1=(u.dims-ro)*inv;
-  let tmin=min(t0,t1); let tmax=max(t0,t1);
-  var ten=max(max(tmin.x,tmin.y),max(tmin.z,0.0));
-  let tex=min(min(tmax.x,tmax.y),tmax.z);
-  if(tex<ten){ return R; }
-  var t=ten+0.0001;
-  let p=ro+rd*t;
-  var c=vec3<i32>(floor(p));
-  let stp=vec3<i32>(sign(rd));
-  let tD=abs(inv);
-  let nb=vec3<f32>(
-    f32(c.x)+select(0.0,1.0,rd.x>0.0),
-    f32(c.y)+select(0.0,1.0,rd.y>0.0),
-    f32(c.z)+select(0.0,1.0,rd.z>0.0));
-  var tM=(nb-ro)*inv;
-  var axis=0;
-  var i=0;
-  loop{
-    if(i>=maxSteps){ break; }
-    if(c.x<0||c.y<0||c.z<0||c.x>=i32(u.dims.x)||c.y>=i32(u.dims.y)||c.z>=i32(u.dims.z)){ break; }
-    let id=textureLoad(vox,c,0).x;
-    if(id!=0u){
-      R.hit=true; R.id=id; R.vox=c; R.t=t;
-      var n=vec3<f32>(0.0);
-      if(axis==0){ n.x=-f32(stp.x); } else if(axis==1){ n.y=-f32(stp.y); } else { n.z=-f32(stp.z); }
-      R.n=n; break;
-    }
-    if(tM.x<tM.y && tM.x<tM.z){ c.x+=stp.x; t=tM.x; tM.x+=tD.x; axis=0; }
-    else if(tM.y<tM.z){ c.y+=stp.y; t=tM.y; tM.y+=tD.y; axis=1; }
-    else { c.z+=stp.z; t=tM.z; tM.z+=tD.z; axis=2; }
-    if(t>tex+1.0){ break; }
-    i++;
-  }
-  return R;
-}
-
-// quick shadow: any solid voxel between point and sun?
-fn shadowRay(ro:vec3<f32>, rd:vec3<f32>, maxSteps:i32)->bool{
-  let inv=1.0/rd;
-  let t0=(vec3<f32>(0.0)-ro)*inv;
-  let t1=(u.dims-ro)*inv;
-  let tmax=max(t0,t1);
-  let tex=min(min(tmax.x,tmax.y),tmax.z);
-  var c=vec3<i32>(floor(ro));
-  let stp=vec3<i32>(sign(rd));
-  let tD=abs(inv);
-  let nb=vec3<f32>(
-    f32(c.x)+select(0.0,1.0,rd.x>0.0),
-    f32(c.y)+select(0.0,1.0,rd.y>0.0),
-    f32(c.z)+select(0.0,1.0,rd.z>0.0));
-  var tM=(nb-ro)*inv; var t=0.0; var i=0;
-  loop{
-    if(i>=maxSteps){ break; }
-    if(tM.x<tM.y && tM.x<tM.z){ c.x+=stp.x; t=tM.x; tM.x+=tD.x; }
-    else if(tM.y<tM.z){ c.y+=stp.y; t=tM.y; tM.y+=tD.y; }
-    else { c.z+=stp.z; t=tM.z; tM.z+=tD.z; }
-    if(c.x<0||c.y<0||c.z<0||c.x>=i32(u.dims.x)||c.y>=i32(u.dims.y)||c.z>=i32(u.dims.z)){ return false; }
-    if(t>tex){ return false; }
-    if(getV(c)!=0u){ return true; }
-    i++;
-  }
-  return false;
-}
-
-fn rng(co:vec2<f32>)->f32{ return fract(sin(dot(co,vec2<f32>(12.9898,78.233)))*43758.5453); }
-
-// cheap face AO from the 4 in-plane edge neighbours just outside surface
-fn aoFactor(vc:vec3<i32>, n:vec3<f32>)->f32{
-  let ni=vec3<i32>(n);
-  let outc=vc+ni;
-  var ta:vec3<i32>; var tb:vec3<i32>;
-  if(abs(n.x)>0.5){ ta=vec3<i32>(0,1,0); tb=vec3<i32>(0,0,1); }
-  else if(abs(n.y)>0.5){ ta=vec3<i32>(1,0,0); tb=vec3<i32>(0,0,1); }
-  else { ta=vec3<i32>(1,0,0); tb=vec3<i32>(0,1,0); }
-  var occ=0.0;
-  if(getV(outc+ta)!=0u){occ+=1.0;}
-  if(getV(outc-ta)!=0u){occ+=1.0;}
-  if(getV(outc+tb)!=0u){occ+=1.0;}
-  if(getV(outc-tb)!=0u){occ+=1.0;}
-  if(getV(outc+ta+tb)!=0u){occ+=0.5;}
-  if(getV(outc+ta-tb)!=0u){occ+=0.5;}
-  if(getV(outc-ta+tb)!=0u){occ+=0.5;}
-  if(getV(outc-ta-tb)!=0u){occ+=0.5;}
-  return 1.0-clamp(occ/6.0,0.0,0.55);
-}
-
-fn skyCol(rd:vec3<f32>)->vec3<f32>{
-  let up=clamp(rd.y*0.5+0.5,0.0,1.0);
-  let horizon=vec3<f32>(0.62,0.72,0.86);
-  let zenith=vec3<f32>(0.21,0.41,0.74);
-  var col=mix(horizon,zenith,pow(up,0.7));
-  let s=max(dot(rd,u.sunDir),0.0);
-  col+=vec3<f32>(1.0,0.78,0.45)*pow(s,180.0)*1.6;     // sun disk
-  col+=vec3<f32>(1.0,0.7,0.4)*pow(s,6.0)*0.18;        // glow
-  return col;
-}
-
-// ray vs single AABB (center,half) in local space -> returns (t,nx,ny,nz); t<0 = miss
-fn boxHit(ro:vec3<f32>, rd:vec3<f32>, ctr:vec3<f32>, hs:vec3<f32>)->vec4<f32>{
-  let inv=1.0/rd;
-  let o=ro-ctr;
-  let t0=(-hs-o)*inv;
-  let t1=( hs-o)*inv;
-  let tmin=min(t0,t1); let tmax=max(t0,t1);
-  let tn=max(max(tmin.x,tmin.y),tmin.z);
-  let tf=min(min(tmax.x,tmax.y),tmax.z);
-  if(tf<tn || tf<0.0){ return vec4<f32>(-1.0,0.0,0.0,0.0); }
-  let tt=select(tn,0.0,tn<0.0);
-  var n=vec3<f32>(0.0);
-  if(tn==tmin.x){ n=vec3<f32>(-sign(rd.x),0.0,0.0); }
-  else if(tn==tmin.y){ n=vec3<f32>(0.0,-sign(rd.y),0.0); }
-  else { n=vec3<f32>(0.0,0.0,-sign(rd.z)); }
-  return vec4<f32>(tt,n.x,n.y,n.z);
-}
-
-struct NHit{ hit:bool, t:f32, n:vec3<f32>, col:vec3<f32> };
-fn npcHit(ro:vec3<f32>, rd:vec3<f32>, maxT:f32)->NHit{
-  var H:NHit; H.hit=false; H.t=maxT;
-  let cnt=i32(u.npcCount);
-  for(var k=0;k<cnt;k++){
-    let a=npcs[k*2];          // xyz pos, w type
-    let b=npcs[k*2+1];        // x angle, y phase
-    let pos=a.xyz; let ang=b.x; let ph=b.y; let typ=i32(a.w+0.5);
-    let ca=cos(-ang); let sa=sin(-ang);
-    // to local (rotate around Y)
-    let lo=ro-pos;
-    let ro2=vec3<f32>(lo.x*ca-lo.z*sa, lo.y, lo.x*sa+lo.z*ca);
-    let rd2=vec3<f32>(rd.x*ca-rd.z*sa, rd.y, rd.x*sa+rd.z*ca);
-    let bob=sin(ph)*0.08;
-    // body
-    var r=boxHit(ro2,rd2, vec3<f32>(0.0,0.82+bob,0.0), vec3<f32>(0.32,0.78,0.20));
-    var bestT=-1.0; var bestN=vec3<f32>(0.0); var part=0;
-    if(r.x>=0.0 && r.x<H.t){ bestT=r.x; bestN=r.yzw; part=0; }
-    // head
-    r=boxHit(ro2,rd2, vec3<f32>(0.0,1.86+bob,0.0), vec3<f32>(0.26,0.26,0.26));
-    if(r.x>=0.0 && r.x<H.t && (bestT<0.0 || r.x<bestT)){ bestT=r.x; bestN=r.yzw; part=1; }
-    if(bestT>=0.0){
-      H.hit=true; H.t=bestT;
-      // back to world normal
-      H.n=vec3<f32>(bestN.x*ca+bestN.z*sa, bestN.y, -bestN.x*sa+bestN.z*ca);
-      var base=vec3<f32>(0.80,0.26,0.24);
-      if(typ==1){ base=vec3<f32>(0.24,0.42,0.82); }
-      else if(typ==2){ base=vec3<f32>(0.86,0.74,0.28); }
-      if(part==1){ base=vec3<f32>(0.92,0.78,0.66); } // head/skin
-      H.col=base;
-    }
-  }
-  return H;
-}
-
-@fragment
-fn fs(@builtin(position) fc:vec4<f32>)->@location(0) vec4<f32>{
-  let uv=(fc.xy/u.res)*2.0-1.0;
-  let th=tan(u.fov*0.5);
-  var rd=normalize(u.camDir + u.camRight*(uv.x*th*u.aspect) + u.camUp*(-uv.y*th));
-  rd=normalize(rd+vec3<f32>(1e-6,1.3e-6,0.7e-6));
-  let ro=u.camPos;
-  let ms=i32(u.maxSteps);
-
-  let terr=raycast(ro,rd,ms);
-  let nh=npcHit(ro,rd, select(1e9, terr.t, terr.hit));
-
-  var col=vec3<f32>(0.0);
-  var dist=1e9;
-
-  if(nh.hit && (!terr.hit || nh.t<terr.t)){
-    // NPC shading
-    dist=nh.t;
-    let nl=max(dot(nh.n,u.sunDir),0.0);
-    let amb=0.35+0.25*clamp(nh.n.y,0.0,1.0);
-    col=nh.col*(amb + nl*vec3<f32>(1.0,0.93,0.82)*0.85);
-  } else if(terr.hit){
-    dist=terr.t;
-    let hp=ro+rd*terr.t;
-    let v=hashf(terr.vox);
-    var base=palette(terr.id,v);
-    // water tweak
-    if(terr.id==6u){ base=mix(base,vec3<f32>(0.2,0.45,0.7),0.5); }
-    let nl=max(dot(terr.n,u.sunDir),0.0);
-    var sh=1.0;
-    if(u.shadowMode>0.5 && nl>0.0){
-      let bias=hp+terr.n*0.02;
-      if(u.shadowMode<1.5){
-        if(shadowRay(bias,u.sunDir,ms)){ sh=0.0; }
-      } else {
-        let ns=i32(u.soft); var lit=0.0;
-        for(var s=0;s<ns;s++){
-          let r1=rng(fc.xy+vec2<f32>(f32(s)*1.7, u.time))-0.5;
-          let r2=rng(fc.xy+vec2<f32>(f32(s)*3.1+9.0, u.time*1.3))-0.5;
-          let jit=normalize(u.sunDir+vec3<f32>(r1,r2*0.6,r1*0.4)*0.06);
-          if(!shadowRay(bias,jit,ms)){ lit+=1.0; }
-        }
-        sh=lit/f32(ns);
-      }
-    }
-    var ao=1.0;
-    if(u.aoOn>0.5){ ao=aoFactor(terr.vox,terr.n); }
-    let sky=skyCol(terr.n);                      // hemispheric ambient
-    let amb=sky*(0.30+0.18*clamp(terr.n.y,0.0,1.0));
-    let sun=vec3<f32>(1.0,0.92,0.78)*nl*sh*1.25;
-    col=base*(amb+sun)*ao;
-  } else {
-    col=skyCol(rd);
-  }
-
-  // distance fog -> horizon haze
-  if(dist<1e8){
-    let fd=1.0-exp(-dist*(u.fog/8000.0));
-    let hz=skyCol(normalize(vec3<f32>(rd.x,max(rd.y,0.02),rd.z)));
-    col=mix(col,hz,clamp(fd,0.0,1.0));
-  }
-
-  // tonemap + gamma
-  col=col/(col+vec3<f32>(1.0));        // reinhard
-  col=pow(col,vec3<f32>(1.0/2.2));
-  return vec4<f32>(col,1.0);
-}`;
-
-function makeModule(code,label){
-  const m=device.createShaderModule({code,label});
-  return m;
-}
-async function checkShader(m,label){
-  if(m.getCompilationInfo){
-    const info=await m.getCompilationInfo();
-    const errs=info.messages.filter(x=>x.type==="error");
-    if(errs.length){
-      const txt=errs.slice(0,6).map(e=>`L${e.lineNum}: ${e.message}`).join("\n");
-      fail(label+" シェーダのコンパイルエラー", txt+"\n\n(このテキストをそのまま貼ってくれたら直すで)");
-      throw new Error("shader compile");
-    }
-  }
-}
-
-// ---------- pipelines ----------
-let genMod=makeModule(GEN_WGSL,"gen");
-let rtMod=makeModule(RT_WGSL,"rt");
-await checkShader(genMod,"生成");
-await checkShader(rtMod,"レンダ");
-
-const genPipe=device.createComputePipeline({
-  layout:"auto",
-  compute:{module:genMod,entryPoint:"main"}
-});
-const rtPipe=device.createRenderPipeline({
-  layout:"auto",
-  vertex:{module:rtMod,entryPoint:"vs"},
-  fragment:{module:rtMod,entryPoint:"fs",targets:[{format:fmt}]},
-  primitive:{topology:"triangle-list"}
-});
-
-// ---------- buffers ----------
-const rtUBO=device.createBuffer({size:128,usage:GPUBufferUsage.UNIFORM|GPUBufferUsage.COPY_DST});
-const genUBO=device.createBuffer({size:32,usage:GPUBufferUsage.UNIFORM|GPUBufferUsage.COPY_DST});
-const npcBuf=device.createBuffer({size:MAXNPC*2*16,usage:GPUBufferUsage.STORAGE|GPUBufferUsage.COPY_DST});
-
-// ---------- world (texture + generation) ----------
-let voxTex=null, voxView=null;
-let SEA=0, SNOW=0;
-
-// JS noise for heightmap + biome
-function hashJS(x,y){let h=Math.imul(x,374761393)^Math.imul(y,668265263);h=Math.imul(h^(h>>>13),1274126177);return((h^(h>>>16))>>>0)/4294967295;}
-function vnoise2(x,y){
-  const xi=Math.floor(x),yi=Math.floor(y),xf=x-xi,yf=y-yi;
-  const u=xf*xf*(3-2*xf),v=yf*yf*(3-2*yf);
-  const a=hashJS(xi,yi),b=hashJS(xi+1,yi),c=hashJS(xi,yi+1),d=hashJS(xi+1,yi+1);
-  return (a*(1-u)+b*u)*(1-v)+(c*(1-u)+d*u)*v;
-}
-function fbm2(x,y,oct){let s=0,a=0.5,f=1;for(let i=0;i<oct;i++){s+=a*vnoise2(x*f,y*f);f*=2;a*=0.5;}return s;}
-
-let seed=Math.floor(Math.random()*9999);
-function buildHeightmap(){
-  const data=new Float32Array(DIMX*DIMZ*2);
-  SEA=Math.floor(DIMY*0.30); SNOW=Math.floor(DIMY*0.70);
-  const baseY=DIMY*0.34, sd=seed*0.123;
-  for(let z=0;z<DIMZ;z++){
-    for(let x=0;x<DIMX;x++){
-      const e=fbm2(x*0.012+sd, z*0.012+sd, 5);
-      const hill=(e-0.45)*DIMY*0.50;
-      const dx=x/DIMX-0.5, dz=z/DIMZ-0.5, d=Math.sqrt(dx*dx+dz*dz)*2.0;
-      const m=Math.max(0,1-d/0.55);
-      const ridge=1-Math.abs(fbm2(x*0.02+sd,z*0.02+sd,5)*2-1);
-      const mountain=Math.pow(m,1.8)*(DIMY*0.55)*(0.6+0.4*ridge);
-      const basin=(fbm2(x*0.006+100+sd,z*0.006+100+sd,3)-0.5)*DIMY*0.25;
-      let h=baseY+hill+mountain+basin;
-      h=Math.max(4,Math.min(DIMY-3,h));
-      const temp=fbm2(x*0.008+50+sd,z*0.008+50+sd,3);
-      const humid=fbm2(x*0.008+90+sd,z*0.008+90+sd,3);
-      let biome=0;
-      if(h<SEA+2) biome=1;                       // beach -> sand
-      else if(h>SNOW) biome=2;                    // snow cap
-      else if(temp<0.40 && h>SNOW-44) biome=2;
-      else if(humid<0.38) biome=1;               // desert
-      else biome=0;                              // grass/forest
-      const i=(z*DIMX+x)*2; data[i]=h; data[i+1]=biome;
-    }
-  }
-  return data;
-}
-
-let heightTex=null;
-function allocWorld(){
-  // (re)create voxel + height textures for current DIMs
-  if(voxTex) voxTex.destroy();
-  if(heightTex) heightTex.destroy();
-  voxTex=device.createTexture({
-    size:[DIMX,DIMY,DIMZ], dimension:"3d", format:"r32uint",
-    usage:GPUTextureUsage.STORAGE_BINDING|GPUTextureUsage.TEXTURE_BINDING
-  });
-  voxView=voxTex.createView({dimension:"3d"});
-  heightTex=device.createTexture({
-    size:[DIMX,DIMZ], format:"rg32float",
-    usage:GPUTextureUsage.TEXTURE_BINDING|GPUTextureUsage.COPY_DST
-  });
-}
-
-async function generate(){
-  load(0.1,"ハイトマップ生成中…");
-  await new Promise(r=>requestAnimationFrame(r));
-  let hm;
-  try{ allocWorld(); hm=buildHeightmap(); }
-  catch(e){ fail("メモリ確保に失敗(世界が大きすぎ?)","世界サイズを下げて再生成してみて。\n\n"+String(e&&e.message||e)); throw e; }
-  device.queue.writeTexture(
-    {texture:heightTex},
-    hm, {bytesPerRow:DIMX*8, rowsPerImage:DIMZ}, [DIMX,DIMZ,1]
-  );
-  // gen uniforms
-  const gu=new Float32Array(8);
-  gu.set([DIMX,DIMY,DIMZ,SEA, SNOW, seed%97, 0.05, S.cave],0);
-  device.queue.writeBuffer(genUBO,0,gu);
-  const gbg=device.createBindGroup({
-    layout:genPipe.getBindGroupLayout(0),
-    entries:[
-      {binding:0,resource:{buffer:genUBO}},
-      {binding:1,resource:heightTex.createView()},
-      {binding:2,resource:voxView}
-    ]
-  });
-  load(0.45,"ボクセル生成中 (GPU)…");
-  const enc=device.createCommandEncoder();
-  const pass=enc.beginComputePass();
-  pass.setPipeline(genPipe); pass.setBindGroup(0,gbg);
-  pass.dispatchWorkgroups(Math.ceil(DIMX/4),Math.ceil(DIMY/4),Math.ceil(DIMZ/4));
-  pass.end();
-  device.queue.submit([enc.finish()]);
-  await device.queue.onSubmittedWorkDone();
-  load(0.85,"仕上げ中…");
-  spawnNPCs(hm);
-  rebuildRTBindGroup();
-  $("#s_vox").textContent=(DIMX*DIMY*DIMZ/1e6).toFixed(1)+"M";
-  // place camera above the mountain centre, looking at it
-  const cx=DIMX*0.5, cz=DIMZ*0.5;
-  const ci=(Math.floor(cz)*DIMX+Math.floor(cx))*2;
-  cam.pos=[cx-DIMX*0.45, Math.min(DIMY-6, hm[ci]+40), cz-DIMZ*0.45];
-  cam.yaw=Math.PI*0.25; cam.pitch=-0.15;
-  load(1.0,"完了"); ov.classList.add("hide");
-}
-
-let rtBindGroup=null;
-function rebuildRTBindGroup(){
-  rtBindGroup=device.createBindGroup({
-    layout:rtPipe.getBindGroupLayout(0),
-    entries:[
-      {binding:0,resource:{buffer:rtUBO}},
-      {binding:1,resource:voxView},
-      {binding:2,resource:{buffer:npcBuf}}
-    ]
-  });
-}
-
-// ---------- NPCs ----------
-const npcState=[]; // {x,z,y,ang,turnT,type}
-let hmCache=null;
-function surfaceH(x,z){
-  if(!hmCache) return DIMY*0.4;
-  const xi=Math.max(0,Math.min(DIMX-1,Math.floor(x)));
-  const zi=Math.max(0,Math.min(DIMZ-1,Math.floor(z)));
-  return hmCache[(zi*DIMX+xi)*2];
-}
-function spawnNPCs(hm){
-  hmCache=hm; npcState.length=0;
-  for(let i=0;i<MAXNPC;i++){
-    const x=20+Math.random()*(DIMX-40), z=20+Math.random()*(DIMZ-40);
-    npcState.push({x,z,y:surfaceH(x,z),ang:Math.random()*6.28,turnT:0,type:i%3});
-  }
-}
-const npcArr=new Float32Array(MAXNPC*8);
-function updateNPCs(dt){
-  const n=Math.min(S.npc,MAXNPC);
-  for(let i=0;i<n;i++){
-    const p=npcState[i];
-    p.turnT-=dt;
-    if(p.turnT<=0){ p.ang+=(Math.random()-0.5)*1.6; p.turnT=1+Math.random()*2.5; }
-    const sp=2.2;
-    let nx=p.x+Math.cos(p.ang)*sp*dt, nz=p.z+Math.sin(p.ang)*sp*dt;
-    if(nx<10||nx>DIMX-10||nz<10||nz>DIMZ-10){ p.ang+=Math.PI; nx=p.x; nz=p.z; }
-    p.x=nx; p.z=nz; p.y=surfaceH(p.x,p.z);
-    const phase=performance.now()*0.006 + i;
-    const a=i*2*4;
-    npcArr[a+0]=p.x; npcArr[a+1]=p.y+0.02; npcArr[a+2]=p.z; npcArr[a+3]=p.type;
-    npcArr[a+4]=p.ang; npcArr[a+5]=phase; npcArr[a+6]=0; npcArr[a+7]=0;
-  }
-  device.queue.writeBuffer(npcBuf,0,npcArr,0,n*8);
-}
-
-// ---------- camera & input ----------
-const cam={pos:[0,0,0],yaw:0,pitch:0};
-const keys={};
-let dash=false;
-let mvx=0,mvz=0,vUp=0;       // movement intents (-1..1)
-addEventListener("keydown",e=>{keys[e.code]=true; if(e.code==="ShiftLeft")dash=true;});
-addEventListener("keyup",e=>{keys[e.code]=false; if(e.code==="ShiftLeft")dash=false;});
-
-// pointer lock look (desktop)
-canvas.addEventListener("click",()=>{ if(!isTouch) canvas.requestPointerLock&&canvas.requestPointerLock(); });
-addEventListener("mousemove",e=>{
-  if(document.pointerLockElement===canvas){
-    cam.yaw+=e.movementX*0.0025; cam.pitch-=e.movementY*0.0025;
-    cam.pitch=Math.max(-1.5,Math.min(1.5,cam.pitch));
-  }
-});
-
-// touch controls
-const isTouch=('ontouchstart' in window)||navigator.maxTouchPoints>0;
-let lookId=-1,lookX=0,lookY=0, stickId=-1,stickCX=0,stickCY=0;
-const stick=$("#stick"),nub=$("#nub");
-function setupTouch(){
-  $("#stick").style.display="block"; $("#vbtns").style.display="flex";
-  $("#hint").textContent="左スティック=移動 • 右ドラッグ=視点 • ▲▼=上下";
-  const sb=stick.getBoundingClientRect(); // for centre fallback
-  function onDown(ev){
-    for(const t of ev.changedTouches){
-      const inStick=t.clientX< innerWidth*0.45 && t.clientY> innerHeight*0.55;
-      if(inStick && stickId<0){
-        stickId=t.identifier; const r=stick.getBoundingClientRect();
-        stickCX=r.left+r.width/2; stickCY=r.top+r.height/2;
-      } else if(lookId<0 && t.clientX> innerWidth*0.4){
-        lookId=t.identifier; lookX=t.clientX; lookY=t.clientY;
-      }
-    }
-  }
-  function onMove(ev){
-    ev.preventDefault();
-    for(const t of ev.changedTouches){
-      if(t.identifier===stickId){
-        let dx=t.clientX-stickCX, dy=t.clientY-stickCY;
-        const mag=Math.hypot(dx,dy), max=52;
-        if(mag>max){ dx*=max/mag; dy*=max/mag; }
-        nub.style.transform=`translate(${dx}px,${dy}px)`;
-        mvx=dx/max; mvz=-dy/max;
-      } else if(t.identifier===lookId){
-        cam.yaw+=(t.clientX-lookX)*0.004; cam.pitch-=(t.clientY-lookY)*0.004;
-        cam.pitch=Math.max(-1.5,Math.min(1.5,cam.pitch));
-        lookX=t.clientX; lookY=t.clientY;
-      }
-    }
-  }
-  function onUp(ev){
-    for(const t of ev.changedTouches){
-      if(t.identifier===stickId){ stickId=-1; mvx=0; mvz=0; nub.style.transform="translate(0,0)"; }
-      if(t.identifier===lookId){ lookId=-1; }
-    }
-  }
-  addEventListener("touchstart",onDown,{passive:false});
-  addEventListener("touchmove",onMove,{passive:false});
-  addEventListener("touchend",onUp); addEventListener("touchcancel",onUp);
-  const hold=(id,fn)=>{const el=$(id);
-    el.addEventListener("touchstart",e=>{e.preventDefault();fn(1);},{passive:false});
-    el.addEventListener("touchend",e=>{e.preventDefault();fn(0);},{passive:false});};
-  hold("#b_up",v=>vUp=v); hold("#b_dn",v=>vUp=-v);
-  $("#b_spr").addEventListener("touchstart",e=>{e.preventDefault();dash=!dash;$("#b_spr").style.color=dash?"#ffb454":"";},{passive:false});
-}
-if(isTouch) setupTouch();
-
-// ---------- sun ----------
-let sunDir=[0,1,0];
-function updateSun(){
-  const el=S.sunEl*Math.PI/180, az=S.sunAz*Math.PI/180;
-  sunDir=[Math.cos(el)*Math.sin(az), Math.sin(el), Math.cos(el)*Math.cos(az)];
-}
-
-// ---------- render loop ----------
-const ubo=new Float32Array(32);
-let last=performance.now(), fpsT=0, frames=0, fps=0, msAvg=16;
-function resize(){
-  const dpr=Math.min(window.devicePixelRatio||1, 2);
-  const w=Math.max(2,Math.floor(innerWidth*dpr*S.scale));
-  const h=Math.max(2,Math.floor(innerHeight*dpr*S.scale));
-  canvas.width=w; canvas.height=h;
-  $("#s_res").textContent=w+"×"+h;
-}
-addEventListener("resize",resize);
-
-function frame(now){
-  const dt=Math.min(0.05,(now-last)/1000); last=now;
-  // camera basis
-  const cp=Math.cos(cam.pitch),sp=Math.sin(cam.pitch),cy=Math.cos(cam.yaw),sy=Math.sin(cam.yaw);
-  const fwd=[sy*cp, sp, cy*cp];
-  const wup=[0,1,0];
-  let right=[wup[1]*fwd[2]-wup[2]*fwd[1], wup[2]*fwd[0]-wup[0]*fwd[2], wup[0]*fwd[1]-wup[1]*fwd[0]];
-  let rl=Math.hypot(right[0],right[1],right[2])||1; right=[right[0]/rl,right[1]/rl,right[2]/rl];
-  let up=[fwd[1]*right[2]-fwd[2]*right[1], fwd[2]*right[0]-fwd[0]*right[2], fwd[0]*right[1]-fwd[1]*right[0]];
-  // movement
-  let kx=mvx, kz=mvz, ky=vUp;
-  if(keys["KeyW"])kz+=1; if(keys["KeyS"])kz-=1; if(keys["KeyD"])kx+=1; if(keys["KeyA"])kx-=1;
-  if(keys["Space"])ky+=1; if(keys["ShiftLeft"]||keys["ControlLeft"])ky-=0; // shift=dash
-  if(keys["KeyC"]||keys["ControlLeft"])ky-=1;
-  const fh=[sy*cp,0,cy*cp]; const fhl=Math.hypot(fh[0],fh[2])||1; fh[0]/=fhl; fh[2]/=fhl;
-  const spd=S.speed*(dash?2.6:1)*dt;
-  cam.pos[0]+=(fh[0]*kz+right[0]*kx)*spd;
-  cam.pos[2]+=(fh[2]*kz+right[2]*kx)*spd;
-  cam.pos[1]+=ky*spd;
-  cam.pos[0]=Math.max(-30,Math.min(DIMX+30,cam.pos[0]));
-  cam.pos[1]=Math.max(1,Math.min(DIMY+60,cam.pos[1]));
-  cam.pos[2]=Math.max(-30,Math.min(DIMZ+30,cam.pos[2]));
-
-  updateNPCs(dt);
-
-  const aspect=canvas.width/canvas.height;
-  const fovr=S.fov*Math.PI/180;
-  let o=0;
-  ubo[o++]=cam.pos[0];ubo[o++]=cam.pos[1];ubo[o++]=cam.pos[2];ubo[o++]=fovr;
-  ubo[o++]=fwd[0];ubo[o++]=fwd[1];ubo[o++]=fwd[2];ubo[o++]=now*0.001;
-  ubo[o++]=right[0];ubo[o++]=right[1];ubo[o++]=right[2];ubo[o++]=aspect;
-  ubo[o++]=up[0];ubo[o++]=up[1];ubo[o++]=up[2];ubo[o++]=S.steps;
-  ubo[o++]=sunDir[0];ubo[o++]=sunDir[1];ubo[o++]=sunDir[2];ubo[o++]=S.shadow;
-  ubo[o++]=canvas.width;ubo[o++]=canvas.height;ubo[o++]=S.ao;ubo[o++]=S.soft;
-  ubo[o++]=DIMX;ubo[o++]=DIMY;ubo[o++]=DIMZ;ubo[o++]=SEA;
-  ubo[o++]=Math.min(S.npc,MAXNPC);ubo[o++]=S.fog;ubo[o++]=SNOW;ubo[o++]=0;
-  device.queue.writeBuffer(rtUBO,0,ubo);
-
-  const enc=device.createCommandEncoder();
-  const pass=enc.beginRenderPass({colorAttachments:[{
-    view:ctx.getCurrentTexture().createView(), clearValue:{r:0,g:0,b:0,a:1},
-    loadOp:"clear", storeOp:"store"}]});
-  pass.setPipeline(rtPipe); pass.setBindGroup(0,rtBindGroup);
-  pass.draw(3); pass.end();
-  device.queue.submit([enc.finish()]);
-
-  // stats
-  msAvg=msAvg*0.9+dt*1000*0.1; frames++; fpsT+=dt;
-  if(fpsT>=0.5){ fps=Math.round(frames/fpsT); frames=0; fpsT=0;
-    $("#s_fps").textContent=fps; $("#s_ms").textContent=msAvg.toFixed(1)+" ms"; }
-  requestAnimationFrame(frame);
-}
-
-// ---------- UI wiring ----------
-function syncLabels(){
-  $("#v_scale").textContent=S.scale.toFixed(2)+"×";
-  $("#v_steps").textContent=S.steps;
-  $("#v_fov").textContent=S.fov+"°";
-  $("#v_soft").textContent=S.soft;
-  $("#v_sun").textContent=S.sunEl+"°";
-  $("#v_azi").textContent=S.sunAz+"°";
-  $("#v_fog").textContent=S.fog;
-  $("#v_spd").textContent=S.speed;
-  $("#v_npc").textContent=S.npc;
-  $("#v_wx").textContent=S.wx;
-  $("#v_wy").textContent=S.wy;
-  $("#v_cave").textContent=S.cave.toFixed(3);
-  $("#s_mode").textContent=S.hrgm?"HRGM":(["影なし","ハード影","ソフト影"][S.shadow]);
-  document.querySelectorAll("[data-sh]").forEach(b=>b.classList.toggle("on",+b.dataset.sh===S.shadow));
-  document.querySelectorAll("[data-ao]").forEach(b=>b.classList.toggle("on",+b.dataset.ao===S.ao));
-}
-const bind=(id,key,fn)=>{const el=$(id);el.value=S[key];
-  el.addEventListener("input",()=>{S[key]=parseFloat(el.value); if(fn)fn(); syncLabels();});};
-bind("#scale","scale",resize); bind("#steps","steps"); bind("#fov","fov");
-bind("#soft","soft"); bind("#sun","sunEl",updateSun); bind("#azi","sunAz",updateSun);
-bind("#fog","fog"); bind("#spd","speed"); bind("#npc","npc");
-bind("#wx","wx"); bind("#wy","wy"); bind("#cave","cave");
-document.querySelectorAll("[data-sh]").forEach(b=>b.onclick=()=>{S.shadow=+b.dataset.sh;S.hrgm=false;updateHRGMbtn();syncLabels();});
-document.querySelectorAll("[data-ao]").forEach(b=>b.onclick=()=>{S.ao=+b.dataset.ao;syncLabels();});
-$("#gear").onclick=()=>$("#panel").classList.toggle("open");
-
-function updateHRGMbtn(){const b=$("#hrgm");b.classList.toggle("on",S.hrgm);b.textContent=S.hrgm?"HRGM ── ON":"HRGM ── OFF";}
-$("#hrgm").onclick=()=>{
-  S.hrgm=!S.hrgm;
-  if(S.hrgm){ S._bak={scale:S.scale,shadow:S.shadow,soft:S.soft,ao:S.ao,steps:S.steps};
-    S.shadow=2; S.soft=Math.max(S.soft,8); S.ao=1; S.scale=Math.max(S.scale,1.0); S.steps=Math.max(S.steps,384);
-  } else if(S._bak){ Object.assign(S,S._bak); }
-  $("#scale").value=S.scale; $("#steps").value=S.steps; $("#soft").value=S.soft;
-  resize(); updateHRGMbtn(); syncLabels();
+play.onclick=()=>{
+  HRGMNative.haptic(12);
+  location.href="hrgm_voxel_world.html?source=launcher";
 };
 
-async function doRegen(newSeed){
-  $("#panel").classList.remove("open");
-  ov.classList.remove("hide"); $("#bar").style.display="block"; ov.querySelector(".box").classList.remove("err");
-  ovT.textContent="REGENERATING";
-  if(newSeed) seed=Math.floor(Math.random()*9999);
-  DIMX=S.wx; DIMY=S.wy; DIMZ=S.wx;
-  try{ await generate(); }catch(e){ /* fail() shown */ }
-}
-$("#regen").onclick=()=>doRegen(false);
-$("#reseed").onclick=()=>doRegen(true);
+window.addEventListener("beforeinstallprompt",(e)=>{
+  e.preventDefault();
+  deferred=e;
+  installBtn.style.display="block";
+});
 
-// ---------- boot ----------
-updateSun(); resize(); syncLabels(); updateHRGMbtn();
-try{
-  await generate();
-  requestAnimationFrame(frame);
-}catch(e){ console.error(e); }
+installBtn.onclick=async()=>{
+  if(!deferred) return;
+  HRGMNative.haptic(16);
+  deferred.prompt();
+  const {outcome}=await deferred.userChoice;
+  deferred=null;
+  if(outcome==="accepted") installBtn.style.display="none";
+};
 
-})();
+window.addEventListener("appinstalled",()=>{
+  installBtn.style.display="none";
+  HRGMNative.haptic([20,40,20]);
+});
 </script>
 </body>
 </html>
